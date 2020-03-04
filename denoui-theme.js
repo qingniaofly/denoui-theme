@@ -31,7 +31,7 @@ var denouiTheme = {
 
         var defaultOptions = denouiTheme.defaultOptions
 
-        if(!denouiTheme.isObject(options.data)){
+        if(!options.data || !denouiTheme.isObject(options.data)){
             options.data = {}
         }
 
@@ -41,7 +41,7 @@ var denouiTheme = {
         var rgbArr = [];
 
         if(!denouiTheme.isRgb(color)){
-            console.log("rgba值不合法，将使用默认值，"+defaultOptions.color)
+            // console.log("rgba值不合法，将使用默认值，"+defaultOptions.color)
 
             rgbArr = denouiTheme.getRgbArr(defaultOptions.color);
         }else{
@@ -56,6 +56,8 @@ var denouiTheme = {
         if(denouiTheme.get(_id)){
             _id = defaultOptions.id;
         }
+
+        options.id = _id;
 
         var id = _id + "-theme-style";
 
@@ -140,7 +142,7 @@ var denouiTheme = {
     },
 
     createStyleDom : function(){
-      return  document.createElement("style")
+        return  document.createElement("style")
     },
 
     // 创建style
