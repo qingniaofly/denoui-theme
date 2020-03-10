@@ -10,6 +10,8 @@ var denouiTheme = {
 
     styles: {},
 
+    classList: {},
+
     defaultOptions: {
         id: "denoui",
         color: "rgb(47,82,635)",
@@ -23,6 +25,21 @@ var denouiTheme = {
 
     get: function(id){
         return this.styles[id];
+    },
+
+    set: function(name,value){
+        this.styles[name] = value
+    },
+
+    setClassName: function(name, value){
+        this.classList[name] = value;
+    },
+
+    getClassName: function(name){
+        if(name){
+            return this.classList[name]
+        }
+        return this.classList
     },
 
     render: function(options){
@@ -41,7 +58,7 @@ var denouiTheme = {
         var rgbArr = [];
 
         if(!denouiTheme.isRgb(color)){
-            // console.log("rgba值不合法，将使用默认值，"+defaultOptions.color)
+            console.log("rgba值不合法，将使用默认值，"+defaultOptions.color)
 
             rgbArr = denouiTheme.getRgbArr(defaultOptions.color);
         }else{
@@ -65,7 +82,7 @@ var denouiTheme = {
 
         style.reload()
 
-        denouiTheme.styles[_id] = style;
+        denouiTheme.set(_id, style)
 
     },
 
@@ -141,6 +158,32 @@ var denouiTheme = {
         return fn(color)
     },
 
+    getIEOpacityToFilter: function(hexifyStr,opacity){
+
+        opacity = opacity < 0.1  ? 0.1 : opacity
+
+        var iEOpacityToFilter = {
+            "0.1": "19",
+            "0.2": "33",
+            "0.3": "4C",
+            "0.4": "66",
+            "0.5": "7F",
+            "0.6": "99",
+            "0.7": "B2",
+            "0.8": "C8",
+            "0.9": "E5",
+        }
+
+        var filterStr = iEOpacityToFilter[opacity]
+
+        if(filterStr){
+            filterStr = "#" + filterStr + hexifyStr
+        }
+
+        return filterStr
+
+    },
+
     createStyleDom : function(){
         return  document.createElement("style")
     },
@@ -152,14 +195,21 @@ var denouiTheme = {
             var style = denouiTheme.createStyleDom();
             style.setAttribute("type","text/css");
             style.setAttribute("id",id);
-            document.head.appendChild(style);
+            var headDom = document.head || (document.getElementsByTagName('head').length && document.getElementsByTagName('head')[0])
+            headDom.appendChild(style);
             this.id = id;
             this.style = style;
             this.options = options;
         }
 
         Style.prototype.setContent = function (content) {
-            this.style.innerHTML = content;
+            var style = this.style
+            if ('styleSheet' in style) {
+                style.setAttribute('type', 'text/css')
+                style.styleSheet.cssText = content
+            } else {
+                style.innerHTML = content
+            }
             return this
         }
 
@@ -175,7 +225,14 @@ var denouiTheme = {
         }
 
         Style.prototype.removeContent = function () {
-            this.style.innerHTML = "";
+            var style = this.style
+            if ('styleSheet' in style) {
+                style.setAttribute('type', 'text/css')
+                style.styleSheet.cssText = ''
+            } else {
+                style.innerHTML = ''
+            }
+            return this
         }
 
         Style.prototype.remove = function () {
@@ -269,6 +326,30 @@ var denouiTheme = {
 
         var styleData = options.data;
         var defaultClass = {}
+
+        var getCssText = function (styleProp,propName,rgbNum,opacity) {
+            var clsValue = ""
+            if(!styleProp["opacity"]){
+                clsValue += ""+propName+": rgb(" + rgbNum + ")!important;";
+            }else{
+
+                clsValue += ""+propName+": rgb(" + rgbNum + ")!important;"+propName+": rgba(" + rgbNum + ","+opacity+")!important;";
+                var hexifyStr = denouiTheme.rgbaToHexify("rgba(" + rgbNum + ","+opacity+")").replace("#","")
+                var iEOpacityToFilter = denouiTheme.getIEOpacityToFilter(hexifyStr,opacity)
+                if(iEOpacityToFilter){
+
+                    if(opacity > 0.1){
+                        clsValue += "filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="+iEOpacityToFilter+",endColorstr="+iEOpacityToFilter+");"
+                    }else{
+                        clsValue += "filter:progid:DXImageTransform.Microsoft.Alpha(opacity=50);"
+                    }
+                }
+
+            }
+            return clsValue
+        }
+
+
         for(var key in styleData){
 
             var styleProp = styleData[key];
@@ -277,39 +358,27 @@ var denouiTheme = {
 
             var clsName = id + "-" + key
 
+            denouiTheme.setClassName(key,clsName)
+
             var clsValue = ""
 
             // 字体颜色
             if(styleProp["color"]){
-
-                if(!styleProp["opacity"]){
-                    clsValue += "color: rgb(" + rgbNum + ")!important;";
-                }else{
-                    clsValue += "color: rgba(" + rgbNum + ","+opacity+")!important;";
-                }
+                clsValue += getCssText(styleProp,'color',rgbNum,opacity)
             }
 
             // 背景颜色
             if(styleProp["background-color"]){
-
-                if(!styleProp["opacity"]){
-                    clsValue += "background-color: rgb(" + rgbNum + ")!important;";
-                }else{
-                    clsValue += "background-color: rgba(" + rgbNum + ","+opacity+")!important;";
-                }
+                clsValue += getCssText(styleProp,'background-color',rgbNum,opacity)
             }
 
             // 边框颜色
             if(styleProp["border-color"]){
-
-                if(!styleProp["opacity"]){
-                    clsValue += "border-color: rgb(" + rgbNum + ")!important;";
-                }else{
-                    clsValue += "border-color: rgba(" + rgbNum + ","+opacity+")!important;";
-                }
+                clsValue += getCssText(styleProp,'border-color',rgbNum,opacity)
             }
             defaultClass[clsName] = clsValue;
         }
+
         return defaultClass
     },
 
@@ -324,7 +393,7 @@ var denouiTheme = {
 
             var content = defaultClass[cls]
 
-            defaultCssContent += "."+cls + "{ "+content+"}";
+            defaultCssContent += "."+cls + "{ "+content+"};:root ."+cls+"{filter: none;}";
         }
 
 
